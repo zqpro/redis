@@ -33,6 +33,9 @@
 #ifndef __AE_H__
 #define __AE_H__
 
+#include "ae.h"
+#include "zmalloc.h"
+
 #include <time.h>
 
 #define AE_OK 0

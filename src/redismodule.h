@@ -89,7 +89,22 @@
 #define REDISMODULE_CTX_FLAGS_REPLICATED (1<<12)
 /* Redis is currently loading either from AOF or RDB. */
 #define REDISMODULE_CTX_FLAGS_LOADING (1<<13)
-
+/* The replica has no link with its master, note that
+ * there is the inverse flag as well:
+ *
+ *  REDISMODULE_CTX_FLAGS_REPLICA_IS_ONLINE
+ *
+ * The two flags are exclusive, one or the other can be set. */
+#define REDISMODULE_CTX_FLAGS_REPLICA_IS_STALE (1<<14)
+/* The replica is trying to connect with the master.
+ * (REPL_STATE_CONNECT and REPL_STATE_CONNECTING states) */
+#define REDISMODULE_CTX_FLAGS_REPLICA_IS_CONNECTING (1<<15)
+/* THe replica is receiving an RDB file from its master. */
+#define REDISMODULE_CTX_FLAGS_REPLICA_IS_TRANSFERRING (1<<16)
+/* The replica is online, receiving updates from its master. */
+#define REDISMODULE_CTX_FLAGS_REPLICA_IS_ONLINE (1<<17)
+/* There is currently some background process active. */
+#define REDISMODULE_CTX_FLAGS_ACTIVE_CHILD (1<<18)
 
 #define REDISMODULE_NOTIFY_GENERIC (1<<2)     /* g */
 #define REDISMODULE_NOTIFY_STRING (1<<3)      /* $ */
@@ -128,6 +143,10 @@
 
 #define REDISMODULE_NOT_USED(V) ((void) V)
 
+/* Bit flags for aux_save_triggers and the aux_load and aux_save callbacks */
+#define REDISMODULE_AUX_BEFORE_RDB (1<<0)
+#define REDISMODULE_AUX_AFTER_RDB (1<<1)
+
 /* This type represents a timer handle, and is returned when a timer is
  * registered and used in order to invalidate a timer. It's just a 64 bit
  * number, because this is how each timer is represented inside the radix tree
@@ -165,6 +184,8 @@ typedef void (*RedisModuleDisconnectFunc)(RedisModuleCtx *ctx, RedisModuleBlocke
 typedef int (*RedisModuleNotificationFunc)(RedisModuleCtx *ctx, int type, const char *event, RedisModuleString *key);
 typedef void *(*RedisModuleTypeLoadFunc)(RedisModuleIO *rdb, int encver);
 typedef void (*RedisModuleTypeSaveFunc)(RedisModuleIO *rdb, void *value);
+typedef int (*RedisModuleTypeAuxLoadFunc)(RedisModuleIO *rdb, int encver, int when);
+typedef void (*RedisModuleTypeAuxSaveFunc)(RedisModuleIO *rdb, int when);
 typedef void (*RedisModuleTypeRewriteFunc)(RedisModuleIO *aof, RedisModuleString *key, void *value);
 typedef size_t (*RedisModuleTypeMemUsageFunc)(const void *value);
 typedef void (*RedisModuleTypeDigestFunc)(RedisModuleDigest *digest, void *value);
@@ -173,7 +194,7 @@ typedef void (*RedisModuleClusterMessageReceiver)(RedisModuleCtx *ctx, const cha
 typedef void (*RedisModuleTimerProc)(RedisModuleCtx *ctx, void *data);
 typedef void (*RedisModuleCommandFilterFunc) (RedisModuleCommandFilterCtx *filter);
 
-#define REDISMODULE_TYPE_METHOD_VERSION 1
+#define REDISMODULE_TYPE_METHOD_VERSION 2
 typedef struct RedisModuleTypeMethods {
     uint64_t version;
     RedisModuleTypeLoadFunc rdb_load;
@@ -182,6 +203,9 @@ typedef struct RedisModuleTypeMethods {
     RedisModuleTypeMemUsageFunc mem_usage;
     RedisModuleTypeDigestFunc digest;
     RedisModuleTypeFreeFunc free;
+    RedisModuleTypeAuxLoadFunc aux_load;
+    RedisModuleTypeAuxSaveFunc aux_save;
+    int aux_save_triggers;
 } RedisModuleTypeMethods;
 
 #define REDISMODULE_GET_API(name) \
